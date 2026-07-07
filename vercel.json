@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/s/:id",
+      "destination": "/api/scan?id=:id"
+    },
+    {
+      "source": "/admin",
+      "destination": "/api/admin"
+    }
+  ]
+}

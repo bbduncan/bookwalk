@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Walk</title>
+  <style>
+    body {
+      font-family: Georgia, serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #faf8f3;
+    }
+    .box {
+      text-align: center;
+      padding: 40px;
+      max-width: 400px;
+    }
+    h1 { color: #2c3e6b; }
+    p { color: #555; }
+    input {
+      font-size: 2rem;
+      width: 80px;
+      text-align: center;
+      padding: 10px;
+      border: 2px solid #2c3e6b;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    button {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      background: #2c3e6b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>📚 Book Walk</h1>
+    <p>How many people are in your group today?</p>
+    <input type="number" id="groupSize" min="1" max="50" value="1">
+    <button onclick="submit()">Start the Walk!</button>
+  </div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const libraryId = params.get('library');
+
+    async function submit() {
+      const size = document.getElementById('groupSize').value;
+      await fetch('/api/record?library=' + libraryId + '&size=' + size);
+      window.location.href = 'https://beckylduncan.com/bookwalk1.html';
+    }
+  </script>
+</body>
+</html>
