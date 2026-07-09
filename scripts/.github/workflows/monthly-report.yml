@@ -1,0 +1,32 @@
+name: Monthly Book Walk Reports
+
+on:
+  schedule:
+    # 2:00 PM UTC on the 1st of every month = 8am/9am Central
+    - cron: "0 14 1 * *"
+  workflow_dispatch:
+    inputs:
+      test_email:
+        description: "Optional: send ALL reports to this address instead of the libraries (for testing)"
+        required: false
+        default: ""
+
+jobs:
+  send-reports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Send monthly reports
+        run: node scripts/monthly-report.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TEST_EMAIL: ${{ github.event.inputs.test_email }}
