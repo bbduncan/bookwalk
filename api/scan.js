@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   const { data: library } = await supabase
     .from('libraries')
     .select('active')
-    .eq('id', id)
+    .eq('id', libraryPrefix)
     .single()
 
   await supabase.from('scans').insert({
