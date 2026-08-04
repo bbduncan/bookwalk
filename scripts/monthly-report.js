@@ -11,7 +11,7 @@ const RESEND_KEY = process.env.RESEND_API_KEY;
 const TEST_EMAIL = process.env.TEST_EMAIL || "";
 
 // The address reports are sent from (domain must be verified in Resend).
-const FROM = "Book Walk Reports <bookwalk@beckylduncan.com>";
+const FROM = "Book Walk Reports <becky@beckylduncan.com>";
 
 // ---------- helpers ----------
 
