@@ -1,7 +1,7 @@
 // Story Time on Demand — Weekly Library Reports
 // Runs every Sunday via GitHub Actions.
-// Reports on the PAST 7 DAYS: pulls each Story Time library's attendance
-// + scan numbers from Supabase and emails them via Resend.
+// Reports on the most recently COMPLETED Sunday–Saturday week:
+// pulls each Story Time library's attendance + scan numbers and emails them.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -28,14 +28,23 @@ async function supabase(path) {
   return res.json();
 }
 
-function pastWeekRange() {
+// Most recently completed Sunday-through-Saturday week (UTC).
+// Run on Sunday, this returns the week that just ended: the previous
+// Sunday 00:00 up to (but not including) this Sunday 00:00.
+function lastWeekRange() {
   const now = new Date();
-  const end = now;
-  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  const dayOfWeek = today.getUTCDay(); // 0 = Sunday
+  const thisSunday = new Date(today.getTime() - dayOfWeek * 86400000);
+  const start = new Date(thisSunday.getTime() - 7 * 86400000); // previous Sunday
+  const end = thisSunday; // exclusive upper bound (this Sunday 00:00)
+  const lastDay = new Date(end.getTime() - 86400000); // Saturday, for the label
   const opts = { month: "long", day: "numeric", timeZone: "UTC" };
   const label =
-    `${start.toLocaleDateString("en-US", opts)}–` +
-    `${end.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
+    `${start.toLocaleDateString("en-US", opts)} – ` +
+    `${lastDay.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
   return { start: start.toISOString(), end: end.toISOString(), label };
 }
 
@@ -74,7 +83,7 @@ async function sendEmail(to, subject, html) {
 // ---------- main ----------
 
 async function main() {
-  const { start, end, label } = pastWeekRange();
+  const { start, end, label } = lastWeekRange();
   console.log(`Generating Story Time reports for ${label}...`);
 
   const libraries = await supabase(
