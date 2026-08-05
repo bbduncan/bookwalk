@@ -5,6 +5,10 @@
       "destination": "/api/scan?id=:id"
     },
     {
+      "source": "/st/:id",
+      "destination": "/api/storytime?id=:id"
+    },
+    {
       "source": "/admin",
       "destination": "/api/admin"
     }
