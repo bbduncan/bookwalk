@@ -1,9 +1,9 @@
-name: Weekly Story Time Reports
+name: Monthly Story Time Reports
 
 on:
   schedule:
-    # 2:00 PM UTC every Sunday = 8am/9am Central
-    - cron: "0 14 * * 0"
+    # 2:00 PM UTC on the 1st of every month = 8am/9am Central
+    - cron: "0 14 1 * *"
   workflow_dispatch:
     inputs:
       test_email:
@@ -23,8 +23,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Send weekly Story Time reports
-        run: node scripts/storytime-weekly.js
+      - name: Send monthly Story Time reports
+        run: node scripts/storytime-monthly.js
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
