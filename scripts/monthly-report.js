@@ -13,6 +13,10 @@ const TEST_EMAIL = process.env.TEST_EMAIL || "";
 // The address reports are sent from (domain must be verified in Resend).
 const FROM = "Book Walk Reports <becky@beckylduncan.com>";
 
+// Shared monthly social media content pack (same link for every library).
+const CONTENT_PACK_URL =
+  "https://docs.google.com/spreadsheets/d/1duTJjgWOZefLo6vFbFKR-YcysfUopzmLafd3yRPkjb8/edit?usp=sharing";
+
 // ---------- helpers ----------
 
 async function supabase(path) {
@@ -69,6 +73,12 @@ function buildEmailHtml(libraryName, monthLabel, stats) {
     </table>`
         : ""
     }
+
+    <div style="background:#eef3ee;border-radius:8px;padding:16px 20px;margin:20px 0;">
+      <p style="margin:0 0 8px;font-size:16px;"><strong>This month's social media posts</strong></p>
+      <p style="margin:0 0 12px;font-size:14px;">Ready-to-use captions and graphics for promoting your Book Walk — free for every subscriber library to use.</p>
+      <a href="${CONTENT_PACK_URL}" style="display:inline-block;background:#2c5f2d;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;">Open the content pack &rarr;</a>
+    </div>
 
     <p style="margin-top:24px;">Thanks for walking with us — see you next month!</p>
     <p style="color:#888;font-size:13px;">Book Walk by Library Magic Maker · beckylduncan.com</p>
