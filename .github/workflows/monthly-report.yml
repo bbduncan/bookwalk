@@ -2,8 +2,8 @@ name: Monthly Book Walk Reports
 
 on:
   schedule:
-    # 2:00 PM UTC on the 1st of every month = 8am/9am Central
-    - cron: "0 14 1 * *"
+    # 13:00 UTC on the 1st = 7:00am Central (CDT). Falls to 6:00am when clocks change in Nov.
+    - cron: "0 13 1 * *"
   workflow_dispatch:
     inputs:
       test_email:
@@ -17,12 +17,10 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Send monthly reports
         run: node scripts/monthly-report.js
         env:
