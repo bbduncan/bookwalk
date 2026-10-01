@@ -1,14 +1,23 @@
 // Book Walk — Monthly Library Reports
-// Runs on the 1st of each month via GitHub Actions.
-// Reports on the PREVIOUS month: pulls each active library's
-// participant + scan numbers from Supabase and emails them via Resend.
+// Runs DAILY via GitHub Actions, but only sends during the first
+// CATCHUP_DAYS days of the month, and only to libraries that haven't
+// already been sent last month's report (tracked in the report_log table).
+// A skipped GitHub run therefore just means the next day's run catches up.
+// Any failure emails ALERT_EMAIL and fails the run.
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RESEND_KEY = process.env.RESEND_API_KEY;
 
 // If TEST_EMAIL is set, ALL reports go to that address instead of the libraries.
+// Test mode ignores the send log and does NOT write to it.
 const TEST_EMAIL = process.env.TEST_EMAIL || "";
+
+// Where failure alerts go.
+const ALERT_EMAIL = process.env.ALERT_EMAIL || "becky@beckylduncan.com";
+
+// Only send during the first N days of the month.
+const CATCHUP_DAYS = 7;
 
 // The address reports are sent from (domain must be verified in Resend).
 const FROM = "Book Walk Reports <becky@beckylduncan.com>";
@@ -30,6 +39,22 @@ async function supabase(path) {
     throw new Error(`Supabase query failed (${res.status}): ${await res.text()}`);
   }
   return res.json();
+}
+
+async function supabaseInsert(table, row) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) {
+    throw new Error(`Supabase insert failed (${res.status}): ${await res.text()}`);
+  }
 }
 
 function previousMonthRange() {
@@ -76,7 +101,7 @@ function buildEmailHtml(libraryName, monthLabel, stats) {
 
     <div style="background:#eef3ee;border-radius:8px;padding:16px 20px;margin:20px 0;">
       <p style="margin:0 0 8px;font-size:16px;"><strong>This month's social media posts</strong></p>
-      <p style="margin:0 0 12px;font-size:14px;">Ready-to-use captions and graphics for promoting your Book Walk — free for every subscriber library to use.</p>
+      <p style="margin:0 0 12px;font-size:14px;">Ready-to-use captions and graphics for promoting your Book Walk — free for every subscribing library to use.</p>
       <a href="${CONTENT_PACK_URL}" style="display:inline-block;background:#2c5f2d;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;">Open the content pack &rarr;</a>
     </div>
 
@@ -100,82 +125,30 @@ async function sendEmail(to, subject, html) {
   return res.json();
 }
 
+async function sendAlert(problems) {
+  const items = problems.map((p) => `<li>${String(p)}</li>`).join("");
+  const html =
+    `<div style="font-family:Georgia,serif;max-width:560px;color:#333;">` +
+    `<h2 style="color:#b00020;">Book Walk monthly report problem</h2>` +
+    `<ul>${items}</ul>` +
+    `<p>Check the run: https://github.com/bbduncan/bookwalk/actions/workflows/monthly-report.yml</p>` +
+    `</div>`;
+  try {
+    await sendEmail(ALERT_EMAIL, "ALERT: Book Walk monthly report problem", html);
+    console.log(`Alert emailed to ${ALERT_EMAIL}.`);
+  } catch (e) {
+    console.error("Could not send alert email:", e);
+  }
+}
+
 // ---------- main ----------
 
 async function main() {
   const { start, end, label } = previousMonthRange();
-  console.log(`Generating Book Walk reports for ${label}...`);
+  const monthKey = start.slice(0, 7); // e.g. "2026-09"
+  const today = new Date().getUTCDate();
+  console.log(`Book Walk reports for ${label} (${monthKey}). Today is day ${today} (UTC).`);
 
-  // 1. Get all active library rows, then group by prefix (ERIE-1..ERIE-8 -> ERIE)
-  const rows = await supabase("libraries?active=eq.true&select=id,name,email");
-  const libraries = {};
-  for (const row of rows) {
-    const prefix = row.id.split("-")[0];
-    if (!libraries[prefix]) {
-      libraries[prefix] = { name: row.name, email: row.email };
-    }
-  }
-
-  const prefixes = Object.keys(libraries);
-  console.log(`Found ${prefixes.length} active librar${prefixes.length === 1 ? "y" : "ies"}: ${prefixes.join(", ")}`);
-
-  let sent = 0;
-  let skipped = 0;
-
-  // 2. For each library, pull last month's numbers and send the report
-  for (const prefix of prefixes) {
-    const lib = libraries[prefix];
-
-    if (!lib.email) {
-      console.log(`SKIPPED ${prefix}: no email address on file.`);
-      skipped++;
-      continue;
-    }
-
-    const participants = await supabase(
-      `participants?library_id=eq.${prefix}&recorded_at=gte.${start}&recorded_at=lt.${end}&select=group_size`
-    );
-    const scans = await supabase(
-      `scans?library_id=eq.${prefix}&scanned_at=gte.${start}&scanned_at=lt.${end}&select=stop_number`
-    );
-
-    const totalWalkers = participants.reduce(
-      (sum, p) => sum + (Number(p.group_size) || 0),
-      0
-    );
-
-    const stopCounts = {};
-    for (const s of scans) {
-      stopCounts[s.stop_number] = (stopCounts[s.stop_number] || 0) + 1;
-    }
-    const perStop = Object.keys(stopCounts)
-      .sort((a, b) => Number(a) - Number(b))
-      .map((stop) => ({ stop, count: stopCounts[stop] }));
-
-    const stats = {
-      totalWalkers,
-      totalGroups: participants.length,
-      totalScans: scans.length,
-      perStop,
-    };
-
-    const recipient = TEST_EMAIL || lib.email;
-    const subject = `Your Book Walk Report — ${label}`;
-    const html = buildEmailHtml(lib.name, label, stats);
-
-    await sendEmail(recipient, subject, html);
-    console.log(
-      `SENT ${prefix} -> ${recipient}` +
-        (TEST_EMAIL ? " (test mode)" : "") +
-        ` | walkers: ${totalWalkers}, groups: ${participants.length}, scans: ${scans.length}`
-    );
-    sent++;
-  }
-
-  console.log(`Done. Sent ${sent}, skipped ${skipped}.`);
-}
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+  // 1. What has already been sent for this month?
+  const logged = TEST_EMAIL
+    ? []
