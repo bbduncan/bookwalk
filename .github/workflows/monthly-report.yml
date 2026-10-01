@@ -2,8 +2,10 @@ name: Monthly Book Walk Reports
 
 on:
   schedule:
-    # 13:00 UTC on the 1st = 7:00am Central (CDT). Falls to 6:00am when clocks change in Nov.
-    - cron: "0 13 1 * *"
+    # Runs DAILY at 13:23 UTC (8:23am CDT / 7:23am CST). The script only sends
+    # during the first 7 days of the month and only to libraries not yet sent,
+    # so a skipped GitHub run just gets caught up the next day.
+    - cron: "23 13 * * *"
   workflow_dispatch:
     inputs:
       test_email:
